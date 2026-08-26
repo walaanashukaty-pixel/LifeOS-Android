@@ -55,12 +55,12 @@ jobs:
       - name: Build original LifeOS web application
         run: npm run build
 
-- name: Install TypeScript for Capacitor
-  run: npm install --save-dev typescript
+      - name: Install TypeScript for Capacitor
+        run: npm install --save-dev typescript
 
-- name: Create Android wrapper
-  run: npx cap add android
-
+      - name: Create Android wrapper
+        run: npx cap add android
+         
       - name: Sync LifeOS into Android
         run: npx cap sync android
 

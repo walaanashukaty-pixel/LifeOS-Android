@@ -1,0 +1,17 @@
+LifeOS Android FINAL
+====================
+
+هذه النسخة تحتوي المشروع كاملاً، بما فيه src/main.tsx وملفات Android build.
+
+طريقة الرفع الأسهل:
+1) فك ضغط LifeOS-Android-FINAL.zip.
+2) افتح مستودع GitHub: walaanashukaty-pixel/LifeOS-Android
+3) Code > Add file > Upload files.
+4) افتح مجلد LifeOS-Android-FINAL على Windows.
+5) اضغط Ctrl+A لتحديد كل شيء، ثم اسحب الكل بالماوس إلى مربع GitHub الكبير.
+   مهم: اسحب الملفات والمجلدات معاً، ولا تستخدم زر اختيار الملفات إذا كان لا يسمح بالمجلدات.
+6) انتظر انتهاء رفع كل الملفات، ثم Commit changes.
+7) افتح Actions. سيبدأ Build LifeOS APK تلقائياً.
+8) عند نجاحه (علامة خضراء): افتح التشغيل > Artifacts > LifeOS-APK.
+
+مهم جداً: يجب أن ترى على GitHub مجلد src ومجلد .github بعد الرفع.

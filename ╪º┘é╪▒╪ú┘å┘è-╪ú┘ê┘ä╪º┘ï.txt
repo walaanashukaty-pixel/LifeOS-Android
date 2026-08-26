@@ -1,0 +1,11 @@
+LifeOS Android - رفع تلقائي إلى GitHub
+
+1) فك ضغط الملف بالكامل.
+2) اضغط مرتين على UPLOAD_TO_GITHUB.bat
+3) إذا فتح GitHub نافذة تسجيل دخول، سجل الدخول فقط.
+4) بعد نجاح الرفع ستفتح صفحة GitHub Actions تلقائياً.
+
+المستودع المستهدف:
+https://github.com/walaanashukaty-pixel/LifeOS-Android
+
+لا تحتاج لرفع الملفات يدوياً من المتصفح.

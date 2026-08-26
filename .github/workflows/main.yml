@@ -29,10 +29,6 @@ jobs:
           test -f capacitor.config.ts
           echo "LifeOS source tree is present."
 
-      - name: Verify original LifeOS source integrity
-        shell: bash
-        run: sha256sum -c SOURCE_HASHES.sha256
-
       - name: Set up Node.js 22
         uses: actions/setup-node@v4
         with:

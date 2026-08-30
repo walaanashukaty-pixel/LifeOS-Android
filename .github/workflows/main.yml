@@ -1,0 +1,205 @@
+name: Build LifeOS APK
+
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      VITE_REVENUECAT_ANDROID_API_KEY: ${{ secrets.VITE_REVENUECAT_ANDROID_API_KEY }}
+      VITE_GOOGLE_WEB_CLIENT_ID: ${{ secrets.VITE_GOOGLE_WEB_CLIENT_ID }}
+      LIFEOS_DEBUG_KEYSTORE_BASE64: ${{ secrets.LIFEOS_DEBUG_KEYSTORE_BASE64 }}
+      ADMOB_ANDROID_APP_ID: ${{ secrets.ADMOB_ANDROID_APP_ID }}
+      VITE_ADMOB_REWARDED_AD_UNIT_ID: ${{ secrets.VITE_ADMOB_REWARDED_AD_UNIT_ID || 'ca-app-pub-3940256099942544/5224354917' }}
+      LIFEOS_ADMOB_TEST_MODE: ${{ (secrets.ADMOB_ANDROID_APP_ID == '' || secrets.VITE_ADMOB_REWARDED_AD_UNIT_ID == '') && 'true' || 'false' }}
+
+    steps:
+      - name: Checkout project
+        uses: actions/checkout@v4
+
+      - name: Verify required project files
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f package.json
+          test -f index.html
+          test -f vite.config.ts
+          test -f src/main.tsx
+          test -f src/app/App.tsx
+          test -f src/app/components/MobileHome.tsx
+          test -f src/utils/notifications.ts
+          test -f src/utils/oauth-model.ts
+          test -f src/utils/subscriptions.ts
+          test -f scripts/patch-android-auth-deeplink.mjs
+          test -f scripts/patch-android-admob.mjs
+          test -f src/utils/ads/reward-policy.ts
+          test -f capacitor.config.ts
+          echo "LifeOS mobile source tree is present."
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android SDK 36
+        shell: bash
+        run: |
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager "platform-tools" "platforms;android-36" "build-tools;36.0.0"
+
+      - name: Install JavaScript dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Run mobile reminder tests
+        run: npm run test:mobile
+
+      - name: Run auth and subscription model tests
+        run: npm run test:auth
+
+      - name: Run rewarded ads tests
+        run: npm run test:ads
+
+      - name: Build LifeOS web application
+        run: npm run build
+
+      - name: Create Android wrapper
+        run: npx cap add android
+
+      - name: Sync LifeOS and native plugins into Android
+        run: npx cap sync android
+
+      - name: Apply Android AdMob App ID
+        run: node scripts/patch-android-admob.mjs
+
+      - name: Apply Android auth deep link and billing launch mode
+        run: node scripts/patch-android-auth-deeplink.mjs
+
+      - name: Apply Android notification permissions
+        run: node scripts/patch-android-notifications.mjs
+
+      - name: Apply LifeOS launcher assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          for density in mdpi hdpi xhdpi xxhdpi xxxhdpi; do
+            src="native-assets/$density"
+            dst="android/app/src/main/res/mipmap-$density"
+            mkdir -p "$dst"
+            cp "$src/ic_launcher.png" "$dst/ic_launcher.png"
+            cp "$src/ic_launcher_round.png" "$dst/ic_launcher_round.png"
+            cp "$src/ic_launcher_foreground.png" "$dst/ic_launcher_foreground.png"
+          done
+
+      - name: Restore and bind stable Android debug signing key
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "${LIFEOS_DEBUG_KEYSTORE_BASE64:-}" ]; then
+            echo "Missing GitHub secret: LIFEOS_DEBUG_KEYSTORE_BASE64" >&2
+            exit 1
+          fi
+
+          KEYSTORE_PATH="$GITHUB_WORKSPACE/.ci/lifeos-debug.keystore"
+          mkdir -p "$(dirname "$KEYSTORE_PATH")"
+          printf '%s' "$LIFEOS_DEBUG_KEYSTORE_BASE64" | base64 --decode > "$KEYSTORE_PATH"
+          chmod 600 "$KEYSTORE_PATH"
+          echo "LIFEOS_DEBUG_KEYSTORE_PATH=$KEYSTORE_PATH" >> "$GITHUB_ENV"
+
+          LANG=C keytool -list -v \
+            -keystore "$KEYSTORE_PATH" \
+            -storepass android \
+            -alias androiddebugkey \
+            -keypass android > LifeOS-Signing-Key.txt
+          SHA1=$(grep -m1 'SHA1:' LifeOS-Signing-Key.txt | sed 's/.*SHA1: *//')
+          echo "LIFEOS_EXPECTED_SHA1=$SHA1" >> "$GITHUB_ENV"
+
+          cat >> android/app/build.gradle <<'EOF'
+
+          android {
+              signingConfigs {
+                  lifeosDebug {
+                      storeFile file(System.getenv("LIFEOS_DEBUG_KEYSTORE_PATH"))
+                      storePassword "android"
+                      keyAlias "androiddebugkey"
+                      keyPassword "android"
+                  }
+              }
+              buildTypes {
+                  debug {
+                      signingConfig signingConfigs.lifeosDebug
+                  }
+              }
+          }
+          EOF
+
+          printf 'Configured stable signing key SHA-1: %s\n' "$SHA1" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Build installable APK
+        shell: bash
+        run: |
+          chmod +x android/gradlew
+          cd android
+          ./gradlew assembleDebug --no-daemon --stacktrace
+
+      - name: Prepare APK
+        shell: bash
+        run: cp android/app/build/outputs/apk/debug/app-debug.apk LifeOS-Mobile.apk
+
+      - name: Verify built APK uses stable signing key
+        shell: bash
+        run: |
+          set -euo pipefail
+          APKSIGNER="$ANDROID_HOME/build-tools/36.0.0/apksigner"
+          test -x "$APKSIGNER"
+          ACTUAL_RAW=$("$APKSIGNER" verify --print-certs LifeOS-Mobile.apk | sed -n 's/^Signer #1 certificate SHA-1 digest: //p' | head -n1)
+          if [ -z "$ACTUAL_RAW" ]; then
+            echo "Could not read APK signing certificate SHA-1" >&2
+            exit 1
+          fi
+          ACTUAL_SHA1=$(printf '%s' "$ACTUAL_RAW" | tr '[:lower:]' '[:upper:]' | sed 's/../&:/g; s/:$//')
+          printf 'Actual APK SHA-1: %s\n' "$ACTUAL_SHA1" >> "$GITHUB_STEP_SUMMARY"
+          if [ "$ACTUAL_SHA1" != "$LIFEOS_EXPECTED_SHA1" ]; then
+            echo "APK signing mismatch. Expected $LIFEOS_EXPECTED_SHA1 but got $ACTUAL_SHA1" >&2
+            exit 1
+          fi
+          printf 'LifeOS Android APK SHA-1: %s\n' "$ACTUAL_SHA1" > LifeOS-SHA1.txt
+
+      - name: Upload APK and signing fingerprint
+        uses: actions/upload-artifact@v4
+        with:
+          name: LifeOS-Mobile-APK
+          path: |
+            LifeOS-Mobile.apk
+            LifeOS-SHA1.txt
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Publish latest test APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          if gh release view lifeos-mobile-latest >/dev/null 2>&1; then
+            gh release upload lifeos-mobile-latest LifeOS-Mobile.apk LifeOS-SHA1.txt --clobber
+          else
+            gh release create lifeos-mobile-latest LifeOS-Mobile.apk LifeOS-SHA1.txt \
+              --title "LifeOS Mobile - Latest Test APK" \
+              --notes "LifeOS mobile test build with Google sign-in, reminders, LifeOS Pro, and optional AdMob rewarded capacity unlocks." \
+              --target "${GITHUB_SHA}"
+          fi

@@ -88,7 +88,6 @@ export function Layout({ page, setPage, children, onRefresh }: LayoutProps) {
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [headerCompact, setHeaderCompact] = useState(false);
-  const [scrollProgress, setScrollProgress] = useState(0);
   const [keyboardOpen, setKeyboardOpen] = useState(false);
   const [isOnline, setIsOnline] = useState(() => typeof navigator === 'undefined' ? true : navigator.onLine);
   const [slowNetwork, setSlowNetwork] = useState(false);
@@ -136,9 +135,8 @@ export function Layout({ page, setPage, children, onRefresh }: LayoutProps) {
   const handleMainScroll = (event: React.UIEvent<HTMLElement>) => {
     const target = event.currentTarget;
     const top = target.scrollTop;
-    setHeaderCompact(top > 28);
-    const max = Math.max(1, target.scrollHeight - target.clientHeight);
-    setScrollProgress(Math.min(1, Math.max(0, top / max)));
+    const compact = top > 28;
+    setHeaderCompact(previous => previous === compact ? previous : compact);
   };
 
   useEffect(() => {
@@ -319,7 +317,7 @@ export function Layout({ page, setPage, children, onRefresh }: LayoutProps) {
         {sidebarContent}
       </aside>
 
-      <div className="flex min-w-0 flex-1 flex-col">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         <motion.header
           className={`lifeos-app-header sticky top-0 z-30 flex flex-shrink-0 items-center gap-3 border-b px-4 backdrop-blur-xl transition-[height,box-shadow,background-color] duration-200 md:h-14 md:px-6 ${headerCompact ? 'h-[52px] border-border/90 bg-card/[0.98] shadow-[0_8px_26px_rgba(0,0,0,0.055)]' : 'h-[60px] border-border bg-card/95'}`}
           transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
@@ -356,12 +354,6 @@ export function Layout({ page, setPage, children, onRefresh }: LayoutProps) {
               {userName.charAt(0).toUpperCase()}
             </button>
           </div>
-          <motion.div
-            aria-hidden="true"
-            className="absolute inset-x-0 bottom-0 h-[2px] origin-right bg-primary/70 md:hidden"
-            animate={{ scaleX: scrollProgress }}
-            transition={{ duration: reduceMotion ? 0 : 0.12, ease: 'linear' }}
-          />
         </motion.header>
 
         <AnimatePresence initial={false}>
@@ -397,19 +389,19 @@ export function Layout({ page, setPage, children, onRefresh }: LayoutProps) {
         <main
           ref={mainRef}
           data-keyboard-open={keyboardOpen}
-          className="lifeos-main lifeos-scroll-region flex-1 overflow-y-auto px-3 pb-32 pt-4 sm:px-4 md:p-7"
+          className="lifeos-main lifeos-scroll-region min-h-0 flex-1 overflow-y-auto px-3 pb-32 pt-3 sm:px-4 md:p-7"
           onTouchStart={handleMainTouchStart}
           onTouchEnd={handleMainTouchEnd}
           onScroll={handleMainScroll}
         >
           <PullToRefresh onRefresh={onRefresh}>
-            <AnimatePresence mode="wait" initial={false}>
+            <AnimatePresence initial={false}>
               <motion.div
                 key={page}
-                initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 10, scale: 0.995 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -6, scale: 0.998 }}
-                transition={{ duration: reduceMotion ? 0.12 : 0.24, ease: [0.22, 1, 0.36, 1] }}
+                initial={reduceMotion ? false : { opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: reduceMotion ? 0.01 : 0.1, ease: 'easeOut' }}
               >
                 {children}
               </motion.div>

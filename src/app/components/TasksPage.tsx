@@ -343,7 +343,7 @@ export function TasksPage() {
             <h3 className="font-bold text-foreground text-base">
               {editTask ? '✏️ تعديل المهمة' : '✨ إضافة مهمة جديدة'}
             </h3>
-            <button onClick={resetForm} className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground">
+            <button onClick={resetForm} className="hidden md:flex h-9 w-9 items-center justify-center rounded-lg hover:bg-muted text-muted-foreground" aria-label="إغلاق نموذج المهمة">
               <X size={16} />
             </button>
           </div>

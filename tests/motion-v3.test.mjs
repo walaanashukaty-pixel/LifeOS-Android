@@ -17,12 +17,13 @@ test('mobile shell supports swipe navigation and pull to refresh', async () => {
   assert.match(app, /refreshToken/);
 });
 
-test('mobile form modal behaves like a draggable bottom sheet', async () => {
+test('mobile form modal behaves like a scroll-safe bottom sheet', async () => {
   const source = await read('src/app/components/ui/FormModal.tsx');
   assert.match(source, /items-end justify-center/);
   assert.match(source, /rounded-t-\[1\.75rem\]/);
-  assert.match(source, /drag=\{reduceMotion \? false : 'y'\}/);
-  assert.match(source, /info\.offset\.y > 110/);
+  assert.match(source, /lifeos-mobile-form-modal/);
+  assert.match(source, /touch-action:pan-y/);
+  assert.doesNotMatch(source, /drag=\{reduceMotion \? false : 'y'\}/);
   assert.match(source, /hapticLight/);
 });
 

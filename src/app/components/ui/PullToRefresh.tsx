@@ -54,7 +54,7 @@ export function PullToRefresh({ children, onRefresh, disabled }: PullToRefreshPr
       return;
     }
 
-    if (event.cancelable && deltaY > 8) event.preventDefault();
+    if (event.cancelable && deltaY > 14 && Math.abs(deltaY) > Math.abs(deltaX) * 1.5) event.preventDefault();
     const resisted = Math.min(MAX_PULL, Math.pow(deltaY, 0.84) * 1.08);
     setPull(resisted);
     if (resisted >= TRIGGER && !armed.current) {
@@ -97,7 +97,7 @@ export function PullToRefresh({ children, onRefresh, disabled }: PullToRefreshPr
 
   return (
     <div
-      className="relative min-h-full overscroll-y-contain"
+      className="relative min-h-full overscroll-y-contain [touch-action:pan-y]"
       onTouchStart={onTouchStart}
       onTouchMove={onTouchMove}
       onTouchEnd={finish}

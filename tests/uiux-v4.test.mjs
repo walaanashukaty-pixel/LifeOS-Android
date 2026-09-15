@@ -20,8 +20,8 @@ test('auth becomes an accessible branded entry point without changing sign-in pr
   assert.match(source, /new-password/);
   assert.match(source, /role="tablist"/);
   assert.match(source, /signInWithGoogle/);
-  assert.match(source, /signIn\(email, password\)/);
-  assert.match(source, /signUp\(email, password, name\)/);
+  assert.match(source, /signIn\(cleanEmail, password\)/);
+  assert.match(source, /signUp\(cleanEmail, password, cleanName\)/);
 });
 
 test('analytics reads like a life pulse while preserving all source APIs', async () => {

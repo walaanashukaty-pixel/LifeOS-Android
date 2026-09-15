@@ -20,7 +20,7 @@
     "test:pro-p1": "node --experimental-strip-types --test tests/pro-p1-*.test.mjs",
     "test:pro-p2": "node --experimental-strip-types --test tests/pro-p2-*.test.mjs",
     "test:data": "node --experimental-strip-types --test tests/data-cloud-security.test.mjs",
-    "test:qa": "node --experimental-strip-types --test tests/product-polish-qa-v1.test.mjs tests/product-polish-qa-v2.test.mjs tests/github-android-sdk-workflow.test.mjs",
+    "test:qa": "node --experimental-strip-types --test tests/product-polish-qa-v1.test.mjs tests/product-polish-qa-v2.test.mjs tests/github-android-sdk-workflow.test.mjs tests/mobile-critical-ux-regression.test.mjs",
     "test:all": "npm run test:qa && npm run test:mobile && npm run test:recurrence && npm run test:auth && npm run test:data && npm run test:ads && npm run test:agent && npm run test:phase2 && npm run test:pro-p0 && npm run test:pro-p1 && npm run test:pro-p2"
   },
   "dependencies": {

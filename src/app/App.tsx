@@ -103,12 +103,6 @@ export default function App() {
     return (
       <div className="relative min-h-screen overflow-hidden bg-background flex items-center justify-center">
         <motion.div
-          aria-hidden="true"
-          className="absolute h-64 w-64 rounded-full bg-primary/10 blur-3xl"
-          animate={reduceMotion ? undefined : { scale: [0.9, 1.08, 0.9], opacity: [0.45, 0.8, 0.45] }}
-          transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
-        />
-        <motion.div
           initial={reduceMotion ? false : { opacity: 0, y: 12, scale: 0.96 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
           transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
@@ -116,8 +110,8 @@ export default function App() {
         >
           <motion.div
             className="flex h-16 w-16 items-center justify-center rounded-[1.35rem] bg-primary text-primary-foreground shadow-xl shadow-primary/20"
-            animate={reduceMotion ? undefined : { y: [0, -5, 0], rotate: [0, -2, 2, 0] }}
-            transition={{ duration: 1.9, repeat: Infinity, ease: 'easeInOut' }}
+            animate={reduceMotion ? undefined : { opacity: [0.86, 1, 0.86] }}
+            transition={{ duration: 1.2, repeat: Infinity, ease: 'easeInOut' }}
           >
             <span className="text-xl font-black tracking-tight">LO</span>
           </motion.div>
@@ -142,7 +136,7 @@ export default function App() {
       <AuthContext.Provider value={{ user, logout, darkMode, toggleDark }}>
         <div className={darkMode ? 'dark' : ''}>
           <AuthPage onSuccess={setUser as any} />
-          <Toaster position="top-center" richColors closeButton toastOptions={{ duration: 3200, className: 'lifeos-toast' }} />
+          <Toaster position="top-center" richColors toastOptions={{ duration: 2800, className: 'lifeos-toast' }} />
         </div>
       </AuthContext.Provider>
     );
@@ -179,7 +173,7 @@ export default function App() {
             </div>
           </Layout>
         </MonetizationProvider>
-        <Toaster position="top-center" richColors closeButton toastOptions={{ duration: 3200, className: 'lifeos-toast' }} />
+        <Toaster position="top-center" richColors toastOptions={{ duration: 2800, className: 'lifeos-toast' }} />
       </ConfirmDialogProvider>
     </AuthContext.Provider>
   );

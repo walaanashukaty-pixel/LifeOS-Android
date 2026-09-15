@@ -4,13 +4,13 @@ import { readFile } from 'node:fs/promises';
 
 const read = path => readFile(path, 'utf8');
 
-test('mobile header reacts to scroll and exposes page progress', async () => {
+test('mobile header reacts to scroll without re-rendering on every scroll frame', async () => {
   const source = await read('src/app/components/Layout.tsx');
   assert.match(source, /headerCompact/);
-  assert.match(source, /scrollProgress/);
   assert.match(source, /handleMainScroll/);
   assert.match(source, /onScroll=\{handleMainScroll\}/);
-  assert.match(source, /scaleX: scrollProgress/);
+  assert.match(source, /setHeaderCompact\(previous => previous === compact \? previous : compact\)/);
+  assert.doesNotMatch(source, /scrollProgress/);
 });
 
 test('long press opens reusable quick actions with haptics', async () => {
@@ -52,11 +52,11 @@ test('notification center animates, drags, and stages notification rows', async 
   assert.match(source, /hapticSelection/);
 });
 
-test('global toasts receive premium V4 styling', async () => {
+test('global toasts stay premium without a duplicate close X on mobile', async () => {
   const app = await read('src/app/App.tsx');
   const theme = await read('src/styles/theme.css');
   assert.match(app, /className: 'lifeos-toast'/);
-  assert.match(app, /closeButton/);
+  assert.doesNotMatch(app, /richColors closeButton/);
   assert.match(theme, /\.lifeos-toast\[data-sonner-toast\]/);
-  assert.match(theme, /backdrop-filter: blur\(16px\)/);
+  assert.match(theme, /\.lifeos-toast\[data-sonner-toast\][\s\S]*backdrop-filter: none !important/);
 });

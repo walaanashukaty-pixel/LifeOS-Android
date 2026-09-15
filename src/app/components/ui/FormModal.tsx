@@ -100,19 +100,10 @@ export function FormModal({ open, title, onClose, children, panelClassName, layo
               panelClassName,
             )}
             onClick={(event) => event.stopPropagation()}
-            drag={reduceMotion ? false : 'y'}
-            dragConstraints={{ top: 0, bottom: 0 }}
-            dragElastic={{ top: 0, bottom: 0.45 }}
-            onDragEnd={(_, info) => {
-              if (info.offset.y > 110 || info.velocity.y > 850) {
-                hapticLight();
-                onClose();
-              }
-            }}
-            initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 80 }}
+            initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 18 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 90 }}
-            transition={{ type: 'spring', stiffness: 420, damping: 34, mass: 0.82 }}
+            exit={{ opacity: 0, y: 12 }}
+            transition={{ duration: reduceMotion ? 0.01 : 0.14, ease: 'easeOut' }}
           >
             <div className="flex justify-center pb-1 pt-2.5" aria-hidden="true">
               <div className="h-1.5 w-11 rounded-full bg-muted-foreground/25" />
@@ -127,7 +118,7 @@ export function FormModal({ open, title, onClose, children, panelClassName, layo
             >
               <X size={20} />
             </motion.button>
-            <div className="lifeos-mobile-form-modal max-h-[calc(90dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom))] overflow-y-auto overscroll-contain pb-[max(12px,env(safe-area-inset-bottom))]">
+            <div className="lifeos-mobile-form-modal max-h-[calc(90dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom))] overflow-y-auto overscroll-contain pb-[max(12px,env(safe-area-inset-bottom))] [touch-action:pan-y]">
               {children}
             </div>
           </motion.section>

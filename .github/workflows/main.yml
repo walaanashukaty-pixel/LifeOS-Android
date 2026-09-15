@@ -1,4 +1,4 @@
-name: Build LifeOS APK
+name: LifeOS Android Test APK
 
 on:
   push:
@@ -8,21 +8,26 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: lifeos-android-test-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  build-android:
+  build-test-apk:
+    name: Build signed test APK
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 45
     env:
-      VITE_REVENUECAT_ANDROID_API_KEY: ${{ secrets.VITE_REVENUECAT_ANDROID_API_KEY || 'test_ACFIesAgIbZEClHVygDGnnecaHB' }}
       VITE_LIFEOS_PRO_PREVIEW: 'true'
+      VITE_REVENUECAT_ANDROID_API_KEY: ${{ secrets.VITE_REVENUECAT_ANDROID_API_KEY || 'test_ACFIesAgIbZEClHVygDGnnecaHB' }}
       VITE_GOOGLE_WEB_CLIENT_ID: ${{ secrets.VITE_GOOGLE_WEB_CLIENT_ID }}
-      LIFEOS_DEBUG_KEYSTORE_BASE64: ${{ secrets.LIFEOS_DEBUG_KEYSTORE_BASE64 }}
       ADMOB_ANDROID_APP_ID: ${{ secrets.ADMOB_ANDROID_APP_ID }}
       VITE_ADMOB_REWARDED_AD_UNIT_ID: ${{ secrets.VITE_ADMOB_REWARDED_AD_UNIT_ID || 'ca-app-pub-3940256099942544/5224354917' }}
-      LIFEOS_ADMOB_TEST_MODE: ${{ (secrets.ADMOB_ANDROID_APP_ID == '' || secrets.VITE_ADMOB_REWARDED_AD_UNIT_ID == '') && 'true' || 'false' }}
+      LIFEOS_ADMOB_TEST_MODE: 'true'
+      LIFEOS_DEBUG_KEYSTORE_BASE64: ${{ secrets.LIFEOS_DEBUG_KEYSTORE_BASE64 }}
 
     steps:
-      - name: Checkout project
+      - name: Checkout
         uses: actions/checkout@v4
 
       - name: Verify required project files
@@ -67,36 +72,67 @@ jobs:
           node-version: '22'
 
       - name: Set up Java 21
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: '21'
 
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
+      - name: Set up Android SDK command-line tools
+        uses: android-actions/setup-android@v4
+        with:
+          # v4 defaults to installing the legacy `tools` package, which is no
+          # longer available on current Android SDK repositories. We only need
+          # sdkmanager here and install the exact SDK packages in the next step.
+          packages: ''
 
       - name: Install Android SDK 36
         shell: bash
         run: |
+          set -euo pipefail
           yes | sdkmanager --licenses >/dev/null || true
           sdkmanager "platform-tools" "platforms;android-36" "build-tools;36.0.0"
 
-      - name: Install JavaScript dependencies
-        run: npm install --no-audit --no-fund
+      - name: Cache Gradle downloads
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ runner.os }}-${{ hashFiles('package.json', 'capacitor.config.ts') }}
+          restore-keys: |
+            gradle-${{ runner.os }}-
 
-      - name: Run product polish and QA regression tests
+      - name: Cache npm downloads
+        uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: npm-${{ runner.os }}-${{ hashFiles('package-lock.json', 'npm-shrinkwrap.json', 'package.json') }}
+          restore-keys: |
+            npm-${{ runner.os }}-
+
+      - name: Install dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -f package-lock.json ] || [ -f npm-shrinkwrap.json ]; then
+            npm ci --no-audit --no-fund
+          else
+            npm install --no-audit --no-fund
+          fi
+
+      - name: Run product polish and QA tests
         run: npm run test:qa
 
-      - name: Run mobile reminder tests
+      - name: Run mobile tests
         run: npm run test:mobile
 
-      - name: Run recurrence activation tests
+      - name: Run recurrence tests
         run: npm run test:recurrence
 
-      - name: Run auth and subscription model tests
+      - name: Run auth and subscription tests
         run: npm run test:auth
 
-      - name: Run cloud data and privacy regression tests
+      - name: Run cloud data tests
         run: npm run test:data
 
       - name: Run rewarded ads tests
@@ -117,13 +153,13 @@ jobs:
       - name: Run LifeOS Pro P2 tests
         run: npm run test:pro-p2
 
-      - name: Build LifeOS web application
+      - name: Build web application
         run: npm run build
 
-      - name: Create Android wrapper
+      - name: Generate Android wrapper
         run: npx cap add android
 
-      - name: Sync LifeOS and native plugins into Android
+      - name: Sync Capacitor plugins
         run: npx cap sync android
 
       - name: Apply Android AdMob App ID
@@ -148,12 +184,13 @@ jobs:
             cp "$src/ic_launcher_foreground.png" "$dst/ic_launcher_foreground.png"
           done
 
-      - name: Restore and bind stable Android debug signing key
+      - name: Restore stable test signing key
         shell: bash
         run: |
           set -euo pipefail
           if [ -z "${LIFEOS_DEBUG_KEYSTORE_BASE64:-}" ]; then
-            echo "Missing GitHub secret: LIFEOS_DEBUG_KEYSTORE_BASE64" >&2
+            echo "Missing GitHub secret LIFEOS_DEBUG_KEYSTORE_BASE64." >&2
+            echo "This key is required so Google Sign-In keeps the same SHA-1 across test APK builds." >&2
             exit 1
           fi
 
@@ -167,11 +204,12 @@ jobs:
             -keystore "$KEYSTORE_PATH" \
             -storepass android \
             -alias androiddebugkey \
-            -keypass android > LifeOS-Signing-Key.txt
-          SHA1=$(grep -m1 'SHA1:' LifeOS-Signing-Key.txt | sed 's/.*SHA1: *//')
+            -keypass android > LifeOS-Test-Signing-Key.txt
+
+          SHA1=$(grep -m1 'SHA1:' LifeOS-Test-Signing-Key.txt | sed 's/.*SHA1: *//')
           echo "LIFEOS_EXPECTED_SHA1=$SHA1" >> "$GITHUB_ENV"
 
-          cat >> android/app/build.gradle <<'ANDROID_EOF'
+          cat >> android/app/build.gradle <<'GRADLE'
 
           android {
               signingConfigs {
@@ -188,60 +226,56 @@ jobs:
                   }
               }
           }
-          ANDROID_EOF
+          GRADLE
 
-          printf 'Configured stable signing key SHA-1: %s\n' "$SHA1" >> "$GITHUB_STEP_SUMMARY"
-
-      - name: Build installable APK
+      - name: Build test APK
         shell: bash
         run: |
+          set -euo pipefail
           chmod +x android/gradlew
           cd android
           ./gradlew assembleDebug --no-daemon --stacktrace
 
-      - name: Prepare APK
-        shell: bash
-        run: cp android/app/build/outputs/apk/debug/app-debug.apk LifeOS-Mobile.apk
-
-      - name: Verify built APK uses stable signing key
+      - name: Verify and package test APK
         shell: bash
         run: |
           set -euo pipefail
+          cp android/app/build/outputs/apk/debug/app-debug.apk LifeOS-Test.apk
           APKSIGNER="$ANDROID_HOME/build-tools/36.0.0/apksigner"
-          test -x "$APKSIGNER"
-          ACTUAL_RAW=$("$APKSIGNER" verify --print-certs LifeOS-Mobile.apk | sed -n 's/^Signer #1 certificate SHA-1 digest: //p' | head -n1)
-          if [ -z "$ACTUAL_RAW" ]; then
-            echo "Could not read APK signing certificate SHA-1" >&2
-            exit 1
-          fi
+          ACTUAL_RAW=$($APKSIGNER verify --print-certs LifeOS-Test.apk | sed -n 's/^Signer #1 certificate SHA-1 digest: //p' | head -n1)
+          test -n "$ACTUAL_RAW"
           ACTUAL_SHA1=$(printf '%s' "$ACTUAL_RAW" | tr '[:lower:]' '[:upper:]' | sed 's/../&:/g; s/:$//')
-          printf 'Actual APK SHA-1: %s\n' "$ACTUAL_SHA1" >> "$GITHUB_STEP_SUMMARY"
           if [ "$ACTUAL_SHA1" != "$LIFEOS_EXPECTED_SHA1" ]; then
             echo "APK signing mismatch. Expected $LIFEOS_EXPECTED_SHA1 but got $ACTUAL_SHA1" >&2
             exit 1
           fi
-          printf 'LifeOS Android APK SHA-1: %s\n' "$ACTUAL_SHA1" > LifeOS-SHA1.txt
+          printf 'SHA-1: %s\n' "$ACTUAL_SHA1" > LifeOS-SHA1.txt
+          sha256sum LifeOS-Test.apk > LifeOS-Test-SHA256.txt
+          printf 'Actual APK SHA-1: %s\n' "$ACTUAL_SHA1" >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Upload APK and signing fingerprint
+      - name: Upload test APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: LifeOS-Mobile-APK
+          name: LifeOS-Test-APK
           path: |
-            LifeOS-Mobile.apk
+            LifeOS-Test.apk
             LifeOS-SHA1.txt
+            LifeOS-Test-SHA256.txt
           if-no-files-found: error
           retention-days: 30
 
-      - name: Publish latest test APK
+      - name: Publish latest test APK release
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
+          set -euo pipefail
+          # Recreate the moving test release so its tag always points at this exact commit.
           if gh release view lifeos-mobile-latest >/dev/null 2>&1; then
-            gh release upload lifeos-mobile-latest LifeOS-Mobile.apk LifeOS-SHA1.txt --clobber
-          else
-            gh release create lifeos-mobile-latest LifeOS-Mobile.apk LifeOS-SHA1.txt \
-              --title "LifeOS Mobile - Latest Test APK" \
-              --notes "LifeOS mobile test build with Google sign-in, reminders, LifeOS Pro, LifeOS Agent foundations, and optional AdMob rewarded capacity unlocks." \
-              --target "${GITHUB_SHA}"
+            gh release delete lifeos-mobile-latest --yes --cleanup-tag
           fi
+          gh release create lifeos-mobile-latest \
+            LifeOS-Test.apk LifeOS-SHA1.txt LifeOS-Test-SHA256.txt \
+            --title "LifeOS Mobile - Latest Test APK" \
+            --notes "Automated test build from the latest main/master source. Pro preview and AdMob test mode are enabled; this is not the Google Play production build." \
+            --target "$GITHUB_SHA"

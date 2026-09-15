@@ -8,6 +8,22 @@ if (!fs.existsSync(manifestPath)) {
 
 let manifest = fs.readFileSync(manifestPath, 'utf8');
 
+// Keep the focused field visible when the Android IME opens. Capacitor's
+// generated activity can otherwise pan/overlay the WebView on some devices.
+const mainActivityTag = /<activity\b[^>]*android:name="\.MainActivity"[^>]*>/;
+const activityMatch = manifest.match(mainActivityTag);
+if (!activityMatch) {
+  console.error('Could not find MainActivity in AndroidManifest.xml');
+  process.exit(1);
+}
+if (/android:windowSoftInputMode="[^"]*"/.test(activityMatch[0])) {
+  const patched = activityMatch[0].replace(/android:windowSoftInputMode="[^"]*"/, 'android:windowSoftInputMode="adjustResize"');
+  manifest = manifest.replace(activityMatch[0], patched);
+} else {
+  const patched = activityMatch[0].replace(/>$/, ' android:windowSoftInputMode="adjustResize">');
+  manifest = manifest.replace(activityMatch[0], patched);
+}
+
 // RevenueCat recommends standard or singleTop so external payment verification
 // can return to the same purchase flow without cancelling it.
 manifest = manifest.replace(
@@ -41,4 +57,4 @@ if (!manifest.includes('android:scheme="com.lifeos.app"')) {
 }
 
 fs.writeFileSync(manifestPath, manifest);
-console.log('LifeOS auth deep link and billing-safe launchMode are present.');
+console.log('LifeOS auth deep link, adjustResize keyboard mode and billing-safe launchMode are present.');

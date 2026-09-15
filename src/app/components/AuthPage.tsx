@@ -94,7 +94,15 @@ export function AuthPage({ onSuccess }: AuthPageProps) {
   }
 
   return (
-    <main className="lifeos-auth-shell" dir="rtl">
+    <main
+      className="lifeos-auth-shell"
+      dir="rtl"
+      onFocusCapture={(event) => {
+        const target = event.target as HTMLElement;
+        if (!target.matches('input, textarea, select')) return;
+        window.setTimeout(() => target.scrollIntoView({ block: 'center', behavior: 'auto' }), 160);
+      }}
+    >
       <div className="lifeos-auth-orb lifeos-auth-orb-one" aria-hidden="true" />
       <div className="lifeos-auth-orb lifeos-auth-orb-two" aria-hidden="true" />
 

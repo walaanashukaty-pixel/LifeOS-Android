@@ -2,7 +2,7 @@
 
 تم استبدال الـ workflow القديم بثلاثة workflows منفصلة حتى لا تختلط نسخة الاختبار مع نسخة الإنتاج.
 
-## 1) CI — `.github/workflows/ci.yml`
+## 1) Android Test APK — `.github/workflows/main.yml`
 
 يعمل عند كل Push أو Pull Request إلى `main` / `master`:
 

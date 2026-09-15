@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import confetti from 'canvas-confetti';
 import { FormModal } from './ui/FormModal';
@@ -12,6 +12,7 @@ import { toast } from 'sonner';
 import { Plus, Trash2, Edit3, Target, Calendar, ChevronUp, ChevronDown, CheckCircle2, Gauge, TimerReset, Flag } from 'lucide-react';
 import { localDateKey, parseLocalDateKey } from '../../utils/date';
 import { dateOrderValidation, firstValidation, numberValidation, textValidation } from '../../utils/validation';
+import { useIsMobile } from './ui/use-mobile';
 
 type GoalType = 'short' | 'medium' | 'long';
 const GOAL_LABELS: Record<GoalType, { label: string; duration: string; color: string; bg: string }> = {
@@ -24,6 +25,7 @@ export function GoalsPage() {
   const confirmAction = useConfirmDialog();
   const { guardCreation } = useMonetization();
   const reduceMotion = useReducedMotion();
+  const isMobile = useIsMobile();
   const [goals, setGoals] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -91,22 +93,45 @@ export function GoalsPage() {
     setShowForm(false);
   }
 
-  const byType = (type: GoalType) => goals.filter(g => g.type === type);
-  const completedGoals = goals.filter(g => (g.progress || 0) >= 100).length;
-  const averageProgress = goals.length ? Math.round(goals.reduce((sum, goal) => sum + (goal.progress || 0), 0) / goals.length) : 0;
-  const todayDate = parseLocalDateKey(localDateKey());
-  const dueSoon = goals.filter(goal => {
-    if (!goal.deadline || (goal.progress || 0) >= 100 || !todayDate) return false;
-    const deadline = parseLocalDateKey(goal.deadline);
-    if (!deadline) return false;
-    const days = Math.ceil((deadline.getTime() - todayDate.getTime()) / 86400000);
-    return days >= 0 && days <= 30;
-  }).length;
+  const goalStats = useMemo(() => {
+    const grouped: Record<GoalType, any[]> = { short: [], medium: [], long: [] };
+    let completed = 0;
+    let progressTotal = 0;
+    let dueSoonCount = 0;
+    const todayDate = parseLocalDateKey(localDateKey());
 
-  if (loading) return <GoalsSkeleton reduceMotion={!!reduceMotion} />;
+    for (const goal of goals) {
+      const type: GoalType = goal.type === 'medium' || goal.type === 'long' ? goal.type : 'short';
+      grouped[type].push(goal);
+      const progress = Number(goal.progress || 0);
+      progressTotal += progress;
+      if (progress >= 100) completed += 1;
+      if (goal.deadline && progress < 100 && todayDate) {
+        const deadline = parseLocalDateKey(goal.deadline);
+        if (deadline) {
+          const days = Math.ceil((deadline.getTime() - todayDate.getTime()) / 86400000);
+          if (days >= 0 && days <= 30) dueSoonCount += 1;
+        }
+      }
+    }
+
+    return {
+      grouped,
+      completed,
+      average: goals.length ? Math.round(progressTotal / goals.length) : 0,
+      dueSoon: dueSoonCount,
+      todayDate,
+    };
+  }, [goals]);
+
+  const completedGoals = goalStats.completed;
+  const averageProgress = goalStats.average;
+  const dueSoon = goalStats.dueSoon;
+
+  if (loading) return <GoalsSkeleton reduceMotion={!!reduceMotion || isMobile} />;
 
   return (
-    <motion.div initial={reduceMotion ? false : { opacity: 0 }} animate={{ opacity: 1 }} className="lifeos-page-shell max-w-5xl space-y-5">
+    <motion.div initial={reduceMotion || isMobile ? false : { opacity: 0 }} animate={{ opacity: 1 }} className="lifeos-page-shell max-w-5xl space-y-5">
       <PageHero
         eyebrow="الرؤية والتقدم"
         title="الأهداف"
@@ -144,13 +169,13 @@ export function GoalsPage() {
         <div className="grid grid-cols-3 gap-2 md:gap-4">
           {(['short', 'medium', 'long'] as GoalType[]).map(type => {
             const { label, color, bg, duration } = GOAL_LABELS[type];
-            const typeGoals = byType(type);
+            const typeGoals = goalStats.grouped[type];
             const avg = typeGoals.length > 0 ? Math.round(typeGoals.reduce((sum, goal) => sum + (goal.progress || 0), 0) / typeGoals.length) : 0;
             return (
-              <motion.div key={type} whileHover={reduceMotion ? undefined : { y: -2 }} className="lifeos-horizon-card">
+              <motion.div key={type} whileHover={reduceMotion || isMobile ? undefined : { y: -2 }} className="lifeos-horizon-card">
                 <div className={`text-[10px] md:text-xs font-bold ${color} ${bg} inline-flex px-2 py-1 rounded-full`}>{label}</div>
                 <div className="mt-3 flex items-end justify-between gap-2"><div><p className="text-xl font-black text-foreground">{typeGoals.length}</p><p className="text-[10px] text-muted-foreground">{duration}</p></div><span className="text-xs font-bold text-muted-foreground">{avg}%</span></div>
-                <div className="lifeos-progress-track mt-3"><motion.div className="lifeos-progress-fill" initial={reduceMotion ? false : { width: 0 }} animate={{ width: `${avg}%` }} /></div>
+                <div className="lifeos-progress-track mt-3"><motion.div className="lifeos-progress-fill" initial={reduceMotion || isMobile ? false : { width: 0 }} animate={{ width: `${avg}%` }} transition={{ duration: reduceMotion || isMobile ? 0.08 : 0.4 }} /></div>
               </motion.div>
             );
           })}
@@ -159,7 +184,7 @@ export function GoalsPage() {
 
       {/* Form */}
       {showForm && (
-        <FormModal open={showForm} title={editGoal ? 'تعديل الهدف' : 'إضافة هدف جديد'} onClose={resetForm} layoutId={editGoal ? `lifeos-goal-card-${editGoal.id}` : undefined}>
+        <FormModal open={showForm} title={editGoal ? 'تعديل الهدف' : 'إضافة هدف جديد'} onClose={resetForm} layoutId={!isMobile && editGoal ? `lifeos-goal-card-${editGoal.id}` : undefined}>
         <div className="bg-card rounded-2xl border border-primary/30 p-5 space-y-4 shadow-lg">
           <h3 className="font-semibold text-foreground">{editGoal ? 'تعديل الهدف' : 'هدف جديد'}</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -196,11 +221,11 @@ export function GoalsPage() {
 
       {/* Goals by type */}
       {(['short', 'medium', 'long'] as GoalType[]).map(type => {
-        const typeGoals = byType(type);
+        const typeGoals = goalStats.grouped[type];
         if (typeGoals.length === 0) return null;
         const { label, color, bg, duration } = GOAL_LABELS[type];
         return (
-          <motion.div key={type} initial={reduceMotion ? false : { opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="space-y-3">
+          <motion.div key={type} initial={reduceMotion || isMobile ? false : { opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: reduceMotion || isMobile ? 0.01 : 0.16 }} className="space-y-3">
             <SectionHeading
               title={label}
               description={`${duration} · ${typeGoals.length} ${typeGoals.length === 1 ? 'هدف' : 'أهداف'}`}
@@ -211,19 +236,9 @@ export function GoalsPage() {
               {typeGoals.map((goal, goalIndex) => {
                 const isComplete = goal.progress >= 100;
                 const deadline = goal.deadline ? parseLocalDateKey(goal.deadline) : null;
-                const todayDate = parseLocalDateKey(localDateKey());
-                const daysLeft = deadline && todayDate ? Math.ceil((deadline.getTime() - todayDate.getTime()) / 86400000) : null;
-                return (
-                  <motion.div
-                    key={goal.id}
-                    layout
-                    layoutId={`lifeos-goal-card-${goal.id}`}
-                    initial={reduceMotion ? false : { opacity: 0, y: 10, scale: 0.985 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={reduceMotion ? undefined : { opacity: 0, scale: 0.96, y: -6 }}
-                    transition={{ duration: 0.24, delay: reduceMotion ? 0 : Math.min(goalIndex * 0.035, 0.14) }}
-                    className={`lifeos-list-card border p-4 ${isComplete ? 'border-primary/30 bg-primary/[0.035] shadow-sm shadow-primary/10' : 'border-border bg-card'}`}
-                  >
+                const daysLeft = deadline && goalStats.todayDate ? Math.ceil((deadline.getTime() - goalStats.todayDate.getTime()) / 86400000) : null;
+                const cardContent = (
+                  <>
                     <div className="flex items-start justify-between mb-2">
                       <div className="flex-1">
                         <h3 className={`font-medium text-sm ${isComplete ? 'text-muted-foreground line-through' : 'text-foreground'}`}>{goal.title}</h3>
@@ -248,9 +263,9 @@ export function GoalsPage() {
                       <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
                         <motion.div
                           className={`h-full rounded-full ${isComplete ? 'bg-primary' : color.replace('text-', 'bg-')}`}
-                          initial={reduceMotion ? false : { width: 0 }}
+                          initial={reduceMotion || isMobile ? false : { width: 0 }}
                           animate={{ width: `${goal.progress || 0}%` }}
-                          transition={{ duration: reduceMotion ? 0 : 0.5, ease: [0.22, 1, 0.36, 1] }}
+                          transition={{ duration: reduceMotion || isMobile ? 0.08 : 0.35, ease: [0.22, 1, 0.36, 1] }}
                         />
                       </div>
                       <span className="text-xs font-bold text-foreground w-9 text-left">{goal.progress || 0}%</span>
@@ -267,6 +282,29 @@ export function GoalsPage() {
                         </span>
                       )}
                     </div>
+                  </>
+                );
+
+                if (isMobile) {
+                  return (
+                    <div key={goal.id} className={`lifeos-list-card border p-4 ${isComplete ? 'border-primary/30 bg-primary/[0.035] shadow-sm shadow-primary/10' : 'border-border bg-card'}`}>
+                      {cardContent}
+                    </div>
+                  );
+                }
+
+                return (
+                  <motion.div
+                    key={goal.id}
+                    layout
+                    layoutId={`lifeos-goal-card-${goal.id}`}
+                    initial={reduceMotion ? false : { opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={reduceMotion ? undefined : { opacity: 0, y: -4 }}
+                    transition={{ duration: reduceMotion ? 0.08 : 0.18, delay: reduceMotion ? 0 : Math.min(goalIndex * 0.02, 0.08) }}
+                    className={`lifeos-list-card border p-4 ${isComplete ? 'border-primary/30 bg-primary/[0.035] shadow-sm shadow-primary/10' : 'border-border bg-card'}`}
+                  >
+                    {cardContent}
                   </motion.div>
                 );
               })}

@@ -21,10 +21,10 @@ echo.
 echo This helper keeps your current LifeOS files as the desired version,
 echo preserves the remote GitHub history, and never force-pushes.
 echo.
-echo GitHub Actions contains:
-echo   1. CI tests + web build
-echo   2. Signed TEST APK on main/master
-echo   3. Signed PRODUCTION APK + AAB on vMAJOR.MINOR.PATCH tags
+echo GitHub Actions behavior:
+echo   1. Normal main/master push = ONE signed Android TEST APK workflow
+echo   2. No separate web artifact is uploaded
+echo   3. PRODUCTION APK + AAB run only on vMAJOR.MINOR.PATCH tags/manual release
 echo.
 echo IMPORTANT:
 echo   - Existing remote commits are fetched before push.

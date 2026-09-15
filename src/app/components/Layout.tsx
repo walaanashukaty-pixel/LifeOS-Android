@@ -318,30 +318,20 @@ export function Layout({ page, setPage, children, onRefresh }: LayoutProps) {
       </aside>
 
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-        <motion.header
-          className={`lifeos-app-header sticky top-0 z-30 flex flex-shrink-0 items-center gap-3 border-b px-4 backdrop-blur-xl transition-[height,box-shadow,background-color] duration-200 md:h-14 md:px-6 ${headerCompact ? 'h-[52px] border-border/90 bg-card/[0.98] shadow-[0_8px_26px_rgba(0,0,0,0.055)]' : 'h-[60px] border-border bg-card/95'}`}
-          transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+        <header
+          className={`lifeos-app-header z-30 flex flex-shrink-0 items-center gap-2.5 border-b px-3 md:h-14 md:px-6 ${headerCompact ? 'border-border/90 bg-card shadow-sm' : 'border-border bg-card'}`}
         >
           <button type="button" aria-label={sidebarOpen ? 'طي القائمة الجانبية' : 'فتح القائمة الجانبية'} className="lifeos-touch-target hidden items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-muted md:flex" onClick={() => setSidebarOpen(s => !s)}>
             {sidebarOpen ? <ChevronLeft size={18} /> : <Menu size={18} />}
           </button>
 
-          <motion.div
-            className="min-w-0 flex-1 origin-right"
-            animate={reduceMotion ? undefined : { y: headerCompact ? -1 : 0, scale: headerCompact ? 0.975 : 1 }}
-            transition={{ duration: 0.18 }}
-          >
-            <h2 className="truncate text-base font-bold text-foreground md:font-semibold">{page === 'dashboard' ? <><span className="md:hidden">LifeOS</span><span className="hidden md:inline">{PAGE_TITLES[page]}</span></> : PAGE_TITLES[page]}</h2>
-            <AnimatePresence initial={false}>
-              {page === 'dashboard' && !headerCompact && (
-                <motion.p initial={{ opacity: 0, y: -2 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -2 }} className="text-[10px] text-muted-foreground md:hidden">نظام إدارة حياتك</motion.p>
-              )}
-            </AnimatePresence>
-          </motion.div>
+          <div className="min-w-0 flex-1">
+            <h2 className="truncate text-[15px] font-extrabold leading-none text-foreground md:text-base md:font-semibold md:leading-normal">{page === 'dashboard' ? <><span className="md:hidden">LifeOS</span><span className="hidden md:inline">{PAGE_TITLES[page]}</span></> : PAGE_TITLES[page]}</h2>
+          </div>
 
           <div className="flex items-center gap-1.5 md:gap-2">
             {isPro && (
-              <span className="rounded-full bg-primary/10 px-2.5 py-1 text-[10px] font-black text-primary">PRO ✨</span>
+              <span className="hidden rounded-full bg-primary/10 px-2.5 py-1 text-[10px] font-black text-primary sm:inline-flex">PRO ✨</span>
             )}
             <button type="button" aria-label={darkMode ? 'تفعيل الوضع الفاتح' : 'تفعيل الوضع الداكن'} onClick={toggleDark} className="lifeos-touch-target hidden items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-muted md:flex">{darkMode ? <Sun size={18} /> : <Moon size={18} />}</button>
             <button type="button" aria-label={unreadCount > 0 ? `الإشعارات، ${unreadCount} غير مقروءة` : 'الإشعارات'} onClick={() => setNotificationsOpen(true)} className="lifeos-touch-target relative flex items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-muted">
@@ -354,7 +344,7 @@ export function Layout({ page, setPage, children, onRefresh }: LayoutProps) {
               {userName.charAt(0).toUpperCase()}
             </button>
           </div>
-        </motion.header>
+        </header>
 
         <AnimatePresence initial={false}>
           {!isOnline && (
@@ -398,10 +388,10 @@ export function Layout({ page, setPage, children, onRefresh }: LayoutProps) {
             <AnimatePresence initial={false}>
               <motion.div
                 key={page}
-                initial={reduceMotion ? false : { opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: reduceMotion ? 0.01 : 0.1, ease: 'easeOut' }}
+                initial={reduceMotion ? false : { opacity: 0, y: 7, scale: 0.997 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -3, scale: 0.999 }}
+                transition={{ duration: reduceMotion ? 0.01 : 0.16, ease: [0.22, 1, 0.36, 1] }}
               >
                 {children}
               </motion.div>

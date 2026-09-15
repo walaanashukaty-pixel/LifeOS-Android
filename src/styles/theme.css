@@ -880,6 +880,15 @@ body {
   }
 }
 
+input,
+textarea,
+[contenteditable='true'] {
+  -webkit-user-select: text;
+  user-select: text;
+  caret-color: currentColor;
+  touch-action: manipulation;
+}
+
 @media (prefers-reduced-motion: reduce) {
   html:focus-within {
     scroll-behavior: auto;
@@ -1052,10 +1061,12 @@ body,
 
 @media (max-width: 767px) {
   .lifeos-app-header {
-    /* Keep the bar visually attached to the top while its content respects the inset. */
-    height: calc(52px + env(safe-area-inset-top)) !important;
-    min-height: calc(52px + env(safe-area-inset-top));
-    padding-top: env(safe-area-inset-top);
+    /* Compact Android header: safe-area is included inside the total height and
+       capped so a vendor/WebView inset can never turn the bar into a huge block. */
+    height: calc(44px + min(env(safe-area-inset-top, 0px), 24px)) !important;
+    min-height: calc(44px + min(env(safe-area-inset-top, 0px), 24px));
+    padding-top: min(env(safe-area-inset-top, 0px), 24px);
+    padding-bottom: 0;
     background: var(--card) !important;
     backdrop-filter: none !important;
     -webkit-backdrop-filter: none !important;

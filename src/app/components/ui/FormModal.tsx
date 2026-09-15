@@ -21,6 +21,11 @@ export function FormModal({ open, title, onClose, children, panelClassName, layo
   const reduceMotion = useReducedMotion();
   const titleId = React.useId();
   const panelRef = React.useRef<HTMLElement | null>(null);
+  const onCloseRef = React.useRef(onClose);
+
+  React.useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
 
   React.useEffect(() => {
     if (!open || !isMobile || typeof document === 'undefined') return;
@@ -31,14 +36,16 @@ export function FormModal({ open, title, onClose, children, panelClassName, layo
 
     const focusPanel = window.requestAnimationFrame(() => {
       const panel = panelRef.current;
-      const target = panel?.querySelector<HTMLElement>('[data-autofocus], input:not([disabled]), textarea:not([disabled]), select:not([disabled]), button:not([disabled]), [href], [tabindex]:not([tabindex="-1"])');
-      (target || panel)?.focus({ preventScroll: true });
+      // Do not auto-focus the first input on Android. Let the user choose the
+      // field so opening a sheet never forces or immediately reopens the IME.
+      const explicitTarget = panel?.querySelector<HTMLElement>('[data-autofocus]');
+      (explicitTarget || panel)?.focus({ preventScroll: true });
     });
 
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         event.preventDefault();
-        onClose();
+        onCloseRef.current();
         return;
       }
       if (event.key !== 'Tab' || !panelRef.current) return;
@@ -50,7 +57,7 @@ export function FormModal({ open, title, onClose, children, panelClassName, layo
       else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
     };
     document.addEventListener('keydown', onKeyDown);
-    const unregisterBack = registerAndroidBackHandler(() => { onClose(); return true; });
+    const unregisterBack = registerAndroidBackHandler(() => { onCloseRef.current(); return true; });
 
     return () => {
       unregisterBack();
@@ -59,7 +66,7 @@ export function FormModal({ open, title, onClose, children, panelClassName, layo
       document.body.style.overflow = previousOverflow;
       previousFocus?.focus?.({ preventScroll: true });
     };
-  }, [open, isMobile, onClose]);
+  }, [open, isMobile]);
 
   if (!isMobile) return open ? <>{children}</> : null;
   if (typeof document === 'undefined') return null;
@@ -100,6 +107,11 @@ export function FormModal({ open, title, onClose, children, panelClassName, layo
               panelClassName,
             )}
             onClick={(event) => event.stopPropagation()}
+            onFocusCapture={(event) => {
+              const target = event.target as HTMLElement;
+              if (!target.matches('input, textarea, select, [contenteditable="true"]')) return;
+              window.setTimeout(() => target.scrollIntoView({ block: 'center', behavior: 'auto' }), 160);
+            }}
             initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 18 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 12 }}
@@ -111,7 +123,7 @@ export function FormModal({ open, title, onClose, children, panelClassName, layo
             <h2 id={titleId} className="sr-only">{title}</h2>
             <motion.button
               type="button"
-              onClick={() => { hapticLight(); onClose(); }}
+              onClick={() => { hapticLight(); onCloseRef.current(); }}
               whileTap={reduceMotion ? undefined : { scale: 0.9 }}
               className="lifeos-fast-close absolute left-2.5 top-2.5 z-30 flex h-11 w-11 touch-manipulation select-none items-center justify-center rounded-full border border-border bg-background/95 text-muted-foreground shadow-md backdrop-blur transition-transform hover:bg-muted hover:text-foreground active:scale-95"
               aria-label="إغلاق النافذة"

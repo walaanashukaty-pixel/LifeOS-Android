@@ -1,0 +1,9 @@
+node_modules/
+dist/
+android/
+*.apk
+.DS_Store
+*.keystore
+*.jks
+LIFEOS_DEBUG_KEYSTORE_BASE64.txt
+*signing-secret*
